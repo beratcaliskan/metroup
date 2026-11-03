@@ -27,9 +27,13 @@ Terazidere → Yenikapı 8 aralıktır. 120 sn/aralık ve 2 durak önce alarm: *
 
 Yer altında internet ve GPS ayrı konulardır: GPS internet olmadan çalışabilir ama tünelde uydu sinyali kaybolabilir. Uygulama konum yokken `elapsedRealtime` üzerinden geçen süreyi kullanır; telefon saatini değiştirmek tahmini bozmaz. Alarm Android AlarmManager'a kurulur, arayüz sayacına bağlı değildir.
 
-Durakta **Buradayım** onayı, zaman tahminini yeniden başlatır. Son 15 sn içinde alınmış, doğruluğu ≤40 m GPS noktası varsa durağın konumu yalnızca telefona kaydedilir. Hazır koordinatlar yoktur; ilk yolculukta otomatik GPS düzeltmesi bekleme. Sonraki yolculuklarda konum servisi öğrenilmiş noktalara 100 m yakın, ≤60 m doğrulukta, son 30 sn içindeki ölçümleri ve güzergâh yönünü kullanır; en fazla iki durak tahmin farkına izin verir. Aynı durağı tekrar tekrar sabitlemez. GPS izni reddedilirse süre alarmı devam eder.
+M1A'nın 18 durağının enlem/boylamı İBB MetroMobile servisinden alınarak uygulamaya gömülüdür (3 Kasım 2026). Veri kaynağı ve eşleme kuralları: [docs/station-data.md](docs/station-data.md). Önceden konum öğretmek gerekmez; katalog internet olmadan kullanılabilir.
 
-Alarmı bildirimden veya uygulamadan kapatabilirsin. Ses/titreşim 5 dk ile sınırlıdır. Ekran kilitliyken bildirim gelir; tam ekran açılma uygulanmamıştır. Gecikme, erken hareket ve hat değişimi otomatik olarak bilinemediğinden varış doğruluğu garanti değildir. Yeniden başlatma, zorla durdurma, kesin alarm izninin geri alınması veya üretici pil kısıtlamaları alarmı iptal edebilir. Yeniden başlatmada eski yolculuk temizlenir. Uygulama verilerini silmek öğrenilen koordinatları siler.
+GPS izni ve telefonun konum servisi açıksa biniş ekranında yakın durak önerilir; **Biniş durağı olarak seç** ile kullanılır. Yolculukta foreground service GPS'i 5 sn hedef aralıkla dinler (gerçek sıklığı Android belirler). ≤60 m doğruluk, son 30 sn içinde ölçüm, mesafe + doğruluk ≤180 m ve diğer durağa göre en az 100 m ayrım aranır. Aynı durakta 5–30 sn arayla iki ayrı ölçüm doğrulanınca seçili güzergâhta durak ve alarm yeniden hesaplanır. Süre tahmini gerçek konumdan çok sapmış olsa da GPS düzeltmesi kabul edilir. Aynı durakta beklenirse en erken 15 sn aralıkla süre tekrar sabitlenir; alarm zaten zamanı geldiyse ertelenmez. Alarm durağına veya ilerisine ulaşıldığında alarm hemen tetiklenmek üzere kurulur.
+
+GPS bayatlarsa ekranda süre tahmini gösterilir. GPS yokken son doğrulanan durak ve zamandan ilerlenir. **Buradayım** elle düzeltme seçeneği de kalır. GPS durağa yakınlığı belirler; peronda veya trende olduğunu kanıtlamaz. Hat ve varış kullanıcı tarafından seçilir; başka hatlar henüz desteklenmez. Kullanıcı GPS koordinatları diske veya sunucuya yazılmaz; yalnızca doğrulanan durak ve zaman yerel kaydedilir.
+
+Alarmı bildirimden veya uygulamadan kapatabilirsin. Ses/titreşim 5 dk ile sınırlıdır. Ekran kilitliyken bildirim gelir; tam ekran açılma uygulanmamıştır. Gecikme, erken hareket ve hat değişimi otomatik olarak bilinemediğinden varış doğruluğu garanti değildir. Yeniden başlatma, zorla durdurma, kesin alarm izninin geri alınması veya üretici pil kısıtlamaları alarmı iptal edebilir. Yeniden başlatmada eski yolculuk temizlenir.
 
 ## Cihaz doğrulaması
 
@@ -38,7 +42,7 @@ Alarmı bildirimden veya uygulamadan kapatabilirsin. Ses/titreşim 5 dk ile sın
 - Yolculuğu bitirince alarmın iptal olduğunu; uygulamayı son uygulamalardan kaydırınca sistem alarmının kaldığını kontrol et (zorla durdurma farklıdır).
 - Elle durak düzeltmesiyle alarm saatinin değiştiğini ve her iki yönün çalıştığını dene.
 - Telefonu yeniden başlatınca eski yolculuğun geri gelmediğini kontrol et.
-- GPS öğrenme, arka planda konum, Bluetooth kulaklık yönlendirmesi, DND ve üretici pil optimizasyonlarını gerçek telefonda test et.
+- GPS ile yakın durak tespiti, arka planda konum, Bluetooth kulaklık yönlendirmesi, DND ve üretici pil optimizasyonlarını gerçek telefonda test et.
 
 ## Supabase ve GitHub
 

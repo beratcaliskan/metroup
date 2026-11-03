@@ -4,13 +4,17 @@
 
 `Journey.kt`: Android'den bağımsız hesaplama; yön, durak sayısı, tekdüze aralık süresi, alarm noktası. Birim testleri iki yönü, gecikme düzeltmesini ve sınırları kapsar.
 
-`Store.kt`: SharedPreferences içinde tek aktif yolculuk ve kullanıcının doğruladığı GPS noktaları. Boot count ile yeniden başlatma tespiti. Bulut hesabı yok.
+`Store.kt`: SharedPreferences içinde tek aktif yolculuk ve son doğrulanan durak/zaman. Boot count ile yeniden başlatma tespiti. Bulut hesabı yok.
 
 `Alarms.kt`: monotonic kesin alarm, BroadcastReceiver, mediaPlayback foreground service ile döngülü alarm sesi ve titreşim. AlarmManager uygulama süreci ölse de alarmı tutar; force-stop veya yeniden başlatma hariç.
 
-`TrackingService.kt`: kullanıcı uygulama ön plandayken başlatılan location foreground service. GPS olmadan temel zaman alarmı kalır. Koordinat eşleme tek ölçümlüdür; üretim için birden çok tutarlı ölçüm, hat geometrisi ve ölçülmüş aralık dağılımlarıyla iyileştirilmelidir.
+`StationCatalog.kt`: İBB kaynağından sıralanmış 18 M1A koordinatı. Kaynak kopyası `docs/m1a-stations.json` ve ayrıntılar `docs/station-data.md` içinde.
 
-`MainActivity.kt`: Compose Türkçe UI, izinler, durak seçimi, geri sayım ve elle doğrulama.
+`StationMatcher.kt`: Android'den bağımsız yakınlık, doğruluk, tazelik, belirsiz eşleşme ve iki ölçüm kontrolü. Sonlu olmayan koordinatlar, eski/tekrarlı GPS ölçümleri reddedilir. Seçili güzergâh dışındaki duraklar alarmı değiştirmez.
+
+`TrackingService.kt`: aktif yolculukta location foreground service. Kabul edilen GPS durağıyla alarmı yeniden kurar; aynı durakta bekleme sırasında süre tahminini sabitler. GPS yoksa mevcut sistem alarmı ve süre tahmini sürer. Alarm zamanı geçtiyse GPS alarmı ertelemez.
+
+`MainActivity.kt`: yalnızca ekran görünürken GPS ile yakın durak önerisi; kullanıcı binişi onaylar. Aktif yolculukta GPS izni sonradan verilirse takip servisi başlatılır. Ham koordinatlar kalıcı kaydedilmez.
 
 ## Opsiyonel Supabase tasarımı (uygulanmadı)
 
@@ -22,4 +26,4 @@ Supabase bilgisayarda [Docker ile barındırılabilir](https://supabase.com/docs
 
 ## Üretime geçmeden
 
-Fiziksel Android cihazlarda Doze, kilit ekranı, alarm izni iptali, batarya optimizasyonu ve ses yönlendirmesini test et. Başlangıç/izin durumları için instrumentation testleri ekle. Ölçülmüş durak süreleri, resmi/doğrulanmış koordinatlar ve belirsizlik aralıkları hazırla. Kullanıcıya bildirilen GPS kaynağı son doğrulama kaynağıdır; sürekli GPS bağlantısı göstergesi değildir. iOS için ayrı platform alarm ve background-location sınırları değerlendirilmelidir.
+Fiziksel Android cihazlarda Doze, kilit ekranı, alarm izni iptali, batarya optimizasyonu ve ses yönlendirmesini test et. Başlangıç/izin durumları için instrumentation testleri ekle. Ölçülmüş durak süreleri, katalog koordinatlarını sahada kontrol et ve belirsizlik aralıkları hazırla. Kullanıcıya bildirilen GPS kaynağı son doğrulama kaynağıdır; sürekli GPS bağlantısı göstergesi değildir. iOS için ayrı platform alarm ve background-location sınırları değerlendirilmelidir.

@@ -4,6 +4,8 @@ import android.Manifest
 import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationListener
 import android.location.LocationManager
 import android.net.Uri
 import android.os.*
@@ -27,8 +29,34 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
-class MainActivity : ComponentActivity() {
-    private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {}
+class MainActivity : ComponentActivity(), LocationListener {
+    private var nearby by mutableStateOf<StationMatch?>(null)
+    private val nearbyMatcher = StationMatcher()
+    private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { startGps() }
+    override fun onResume() { super.onResume(); startGps() }
+    override fun onPause() {
+        getSystemService(LocationManager::class.java).removeUpdates(this)
+        super.onPause()
+    }
+    private fun startGps() {
+        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
+        runCatching { getSystemService(LocationManager::class.java).requestLocationUpdates(LocationManager.GPS_PROVIDER, 5_000L, 0f, this) }
+        val j = Store(this).load()
+        if (j != null && !j.ringing) runCatching { startForegroundService(Intent(this, TrackingService::class.java)) }
+    }
+    override fun onLocationChanged(location: Location) {
+        if (!location.hasAccuracy()) { nearby = null; return }
+        val fix = GpsFix(GeoPoint(location.latitude, location.longitude), location.accuracy.toDouble(), location.elapsedRealtimeNanos / 1_000_000)
+        val now = SystemClock.elapsedRealtime()
+        val match = nearbyMatcher.accept(fix, now, M1A.stations.indices.toList())
+        if (nearbyMatcher.nearest(fix, now) == null) nearby = null
+        else if (match != null) nearby = match
+    }
+    @Deprecated("Legacy location callback")
+    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
+    override fun onProviderEnabled(provider: String) = Unit
+    override fun onProviderDisabled(provider: String) { nearby = null }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContent { MetroScreen() }
@@ -41,13 +69,6 @@ class MainActivity : ComponentActivity() {
             add(Manifest.permission.ACCESS_COARSE_LOCATION)
         }.toTypedArray())
     }
-    private fun learn(station: Int) {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
-        val gps = runCatching { getSystemService(LocationManager::class.java).getLastKnownLocation(LocationManager.GPS_PROVIDER) }.getOrNull() ?: return
-        val age = SystemClock.elapsedRealtimeNanos() - gps.elapsedRealtimeNanos
-        if (age in 0..15_000_000_000L && gps.hasAccuracy() && gps.accuracy <= 40) Store(this).learn(station, gps.latitude, gps.longitude)
-    }
-
     @Composable
     private fun MetroScreen() {
         val store = remember { Store(this) }
@@ -85,6 +106,11 @@ class MainActivity : ComponentActivity() {
                     if (j == null) {
                         Panel {
                             Text("01  YOLCULUĞUN", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                            val detected = nearby?.takeIf { now - it.elapsed in 0..30_000L }
+                            if (detected != null) {
+                                Text("GPS yakını: ${M1A.stations[detected.station]} • ${detected.distanceMeters.toInt()} m", color = MaterialTheme.colorScheme.primary)
+                                TextButton(onClick = { start = detected.station }) { Text("Biniş durağı olarak seç") }
+                            } else Text("GPS: yakın durak bekleniyor. İstersen binişi elle seç.", fontSize = 12.sp)
                             StationPicker("Biniş durağı", start, M1A.stations.indices.toList()) { start = it }
                             TextButton(onClick = { val old = start; start = dest; dest = old }) { Text("↑↓ Yönü değiştir") }
                             StationPicker("Varış durağı", dest, M1A.stations.indices.toList()) { dest = it }
@@ -107,7 +133,8 @@ class MainActivity : ComponentActivity() {
                             Text("${M1A.stations[j.start]} → ${M1A.stations[j.destination]}")
                             Text("${j.before} durak önce: ${M1A.stations[j.alarmStation]}", color = MaterialTheme.colorScheme.primary)
                             HorizontalDivider()
-                            Text("Tahmini durak: ${M1A.stations[j.estimatedStation(now)]}")
+                            val gpsFresh = j.source.startsWith("GPS") && now - j.anchorElapsed in 0..30_000L
+                            Text(if (gpsFresh) "GPS yakını: ${M1A.stations[j.anchor]}" else "Süre tahmini: ${M1A.stations[j.estimatedStation(now)]}")
                             Text("Son dayanak: ${j.source} • ${M1A.stations[j.anchor]}", fontSize = 12.sp)
                             Text("Konum doğrulanmazsa süreyle ilerler. Gecikmeler tahmini değiştirebilir.", color = Color(0xFFABB9BF), fontSize = 12.sp)
                         }
@@ -118,10 +145,10 @@ class MainActivity : ComponentActivity() {
                                 runCatching {
                                     val station = confirm.coerceIn(minOf(j.start,j.destination), maxOf(j.start,j.destination))
                                     val updated = j.reanchor(station, SystemClock.elapsedRealtime(), "Elle doğrulandı")
-                                    Alarms.schedule(this@MainActivity, updated); store.save(updated); learn(station); journey = updated
+                                    Alarms.schedule(this@MainActivity, updated); store.save(updated); journey = updated
                                 }.onFailure { error = it.message }
                             }, modifier = Modifier.fillMaxWidth()) { Text("Buradayım • süreyi güncelle") }
-                            Text("İyi GPS sinyali varsa bu durağın konumu yalnızca telefona kaydedilir.", fontSize = 12.sp, color = Color(0xFFABB9BF))
+                            Text("GPS gelirse resmi durak koordinatlarına göre alarm otomatik güncellenir.", fontSize = 12.sp, color = Color(0xFFABB9BF))
                         }
                     }
                     if (!exact || !notify) Panel {
@@ -140,7 +167,7 @@ class MainActivity : ComponentActivity() {
                             val created = Journey.create(start, dest, before, seconds, SystemClock.elapsedRealtime())
                             store.save(created)
                             try { Alarms.schedule(this@MainActivity, created) } catch (e: Exception) { store.clear(); throw e }
-                            journey = created; confirm = start; learn(start); error = null
+                            journey = created; confirm = start; error = null
                             if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
                                 startForegroundService(Intent(this@MainActivity, TrackingService::class.java))
                         }.onFailure { error = it.message }

@@ -21,11 +21,4 @@ class Store(context: Context) {
         check(prefs.edit().putString("journey", o.toString()).commit())
     }
     fun clear() { prefs.edit().remove("journey").commit() }
-    fun coordinate(station: Int): Pair<Double, Double>? = runCatching {
-        val parts = prefs.getString("station_$station", null)?.split(",") ?: return null
-        parts[0].toDouble() to parts[1].toDouble()
-    }.getOrNull()
-    fun learn(station: Int, lat: Double, lon: Double) {
-        prefs.edit().putString("station_$station", "$lat,$lon").apply()
-    }
 }

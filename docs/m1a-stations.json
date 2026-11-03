@@ -1,0 +1,128 @@
+[
+  {
+    "id": 121,
+    "order": 1,
+    "name": "Yenikapı",
+    "latitude": 41.004755,
+    "longitude": 28.952549
+  },
+  {
+    "id": 120,
+    "order": 2,
+    "name": "Aksaray",
+    "latitude": 41.0120281897,
+    "longitude": 28.9480625565
+  },
+  {
+    "id": 119,
+    "order": 3,
+    "name": "Emniyet-Fatih",
+    "latitude": 41.0176115439,
+    "longitude": 28.9395963977
+  },
+  {
+    "id": 118,
+    "order": 4,
+    "name": "Topkapı-Ulubatlı",
+    "latitude": 41.0240250582,
+    "longitude": 28.9305034257
+  },
+  {
+    "id": 117,
+    "order": 5,
+    "name": "Bayrampaşa-Maltepe",
+    "latitude": 41.0340978572,
+    "longitude": 28.920238689
+  },
+  {
+    "id": 116,
+    "order": 6,
+    "name": "Sağmalcılar",
+    "latitude": 41.0408544497,
+    "longitude": 28.9072352877
+  },
+  {
+    "id": 115,
+    "order": 7,
+    "name": "Kocatepe",
+    "latitude": 41.0484928183,
+    "longitude": 28.8953862076
+  },
+  {
+    "id": 203,
+    "order": 8,
+    "name": "Otogar",
+    "latitude": 41.0401441651,
+    "longitude": 28.8945600984
+  },
+  {
+    "id": 114,
+    "order": 9,
+    "name": "Terazidere",
+    "latitude": 41.0303317032,
+    "longitude": 28.8979522419
+  },
+  {
+    "id": 113,
+    "order": 10,
+    "name": "Davutpaşa-YTÜ",
+    "latitude": 41.0206387059,
+    "longitude": 28.9001417888
+  },
+  {
+    "id": 112,
+    "order": 11,
+    "name": "Merter",
+    "latitude": 41.0076458753,
+    "longitude": 28.8961771147
+  },
+  {
+    "id": 111,
+    "order": 12,
+    "name": "Zeytinburnu",
+    "latitude": 41.0017008338,
+    "longitude": 28.8896520683
+  },
+  {
+    "id": 110,
+    "order": 13,
+    "name": "Bakırköy-İncirli",
+    "latitude": 40.9966121333,
+    "longitude": 28.8753997556
+  },
+  {
+    "id": 109,
+    "order": 14,
+    "name": "Bahçelievler",
+    "latitude": 40.9953532384,
+    "longitude": 28.8630661969
+  },
+  {
+    "id": 108,
+    "order": 15,
+    "name": "Ataköy-Şirinevler",
+    "latitude": 40.9913500997,
+    "longitude": 28.846082309
+  },
+  {
+    "id": 107,
+    "order": 16,
+    "name": "Yenibosna",
+    "latitude": 40.9893149835,
+    "longitude": 28.8367043004
+  },
+  {
+    "id": 106,
+    "order": 17,
+    "name": "DTM-İstanbul Fuar Merkezi",
+    "latitude": 40.9866455145,
+    "longitude": 28.8285503243
+  },
+  {
+    "id": 105,
+    "order": 18,
+    "name": "Atatürk Havalimanı",
+    "latitude": 40.9795429431,
+    "longitude": 28.8211244027
+  }
+]
