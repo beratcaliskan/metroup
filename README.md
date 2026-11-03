@@ -62,6 +62,8 @@ Sokak zemini [OpenStreetMap](https://www.openstreetmap.org/copyright) üzerinden
 
 Harita görünürken OpenStreetMap sunucusuna görüntülenen bölgenin tile istekleri ve standart bağlantı bilgileri gönderilir; haritayı konuma merkezlemek yaklaşık bölgeni açığa çıkarabilir. Kullanıcı koordinatları ayrı bir analitik veya backend servisine gönderilmez. [Tile kullanım politikası](https://operations.osmfoundation.org/policies/tiles/). WebView yalnızca paketlenmiş harita dosyalarını ve HTTPS OSM tile görsellerini yükler; yerel dosya/konum erişimi ve native JavaScript köprüsü yoktur.
 
+Android WebView sayfayı son boyutunu almadan yükleyebilir. Native taraf görünümün CSS genişlik/yüksekliğini açıkça aktarır; harita `invalidateSize` ile yeniden ölçülür. Sayfa yüklenmesi tek başına başarı sayılmaz: JS, pozitif harita boyutu ve çizilen durak sayısıyla yanıt verir. 10 sn içinde başlamazsa uygulamanın kendi Compose Canvas hat görünümü açılır. WebView başarılı görünse bile görüntü alınamayan cihazlar için **Çevrimdışı hat görünümüne geç** her zaman kullanılabilir; **Sokak haritasını aç / yeniden dene** ile geri dönülür. Bu görünüm harita motoruna veya internete bağlı değildir; gerçek durak koordinatları, ölçülen nokta ve tahmini ilerleme çizilir. Script hataları yalnızca yerel Android loguna yazılır.
+
 ## Cihaz doğrulaması
 
 - Haritada yakınlaştırma, tam ekran, konumu takip, konum kesilince gri nokta/turuncu tahmin ayrımı ve uçak modunda hat katmanını kontrol et.

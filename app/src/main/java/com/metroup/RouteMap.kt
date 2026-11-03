@@ -39,8 +39,21 @@ fun RouteMap(state: RouteMapState, now: Long) {
     var expanded by remember { mutableStateOf(false) }
     val json = state.json(now)
     @Composable fun MapContent(modifier: Modifier) {
-        AndroidView(factory = { RouteMapView(it) }, modifier = modifier.clip(RoundedCornerShape(16.dp)),
-            update = { it.render(json) }, onRelease = { it.releaseMap() })
+        var failed by remember { mutableStateOf(false) }
+        var offline by remember { mutableStateOf(false) }
+        var retry by remember { mutableIntStateOf(0) }
+        Column(modifier) {
+            if (failed || offline) {
+                Text(if(failed) "Sokak haritası başlatılamadı. Çevrimdışı hat görünümü açık." else "Çevrimdışı hat görünümü", fontSize=12.sp)
+                TextButton(onClick = { failed=false; offline=false; retry++ }) { Text("Sokak haritasını aç / yeniden dene") }
+                OfflineRouteMap(state, Modifier.fillMaxWidth().weight(1f))
+            } else key(retry) {
+                AndroidView(factory = { RouteMapView(it) { failed = true } },
+                    modifier = Modifier.fillMaxWidth().weight(1f).clip(RoundedCornerShape(16.dp)),
+                    update = { it.render(json) }, onRelease = { it.releaseMap() })
+                TextButton(onClick = { offline=true }) { Text("Çevrimdışı hat görünümüne geç") }
+            }
+        }
     }
     @Composable fun Legend() {
         Text("● Mavi: son ölçüm   ◆ Turuncu: tahmini ilerleme", fontSize = 11.sp)
@@ -71,7 +84,10 @@ fun RouteMap(state: RouteMapState, now: Long) {
 }
 
 @SuppressLint("SetJavaScriptEnabled", "ClickableViewAccessibility")
-private class RouteMapView(context: Context) : WebView(context) {
+private class RouteMapView(context: Context, private val failed: () -> Unit) : WebView(context) {
+    private var released=false
+    private var painted=false
+    private val watchdog=Runnable { if(!released&&!painted) failed() }
     private var ready = false
     private var pending = ""
     private val loader = WebViewAssetLoader.Builder()
@@ -86,8 +102,15 @@ private class RouteMapView(context: Context) : WebView(context) {
         settings.setGeolocationEnabled(false)
         settings.mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
         settings.cacheMode = WebSettings.LOAD_DEFAULT
-        settings.userAgentString = settings.userAgentString + " MetroUp/0.4.0 (+https://github.com/beratcaliskan/metroup)"
+        settings.userAgentString = settings.userAgentString + " MetroUp/0.4.1 (+https://github.com/beratcaliskan/metroup)"
         setBackgroundColor(android.graphics.Color.rgb(23,39,47))
+        webChromeClient = object : WebChromeClient() {
+            override fun onConsoleMessage(message: ConsoleMessage): Boolean {
+                if(message.messageLevel()==ConsoleMessage.MessageLevel.ERROR)
+                    android.util.Log.e("MetroUpMap", "Map script error at ${message.sourceId()}:${message.lineNumber()}: ${message.message()}")
+                return true
+            }
+        }
         webViewClient = object : WebViewClient() {
             override fun shouldInterceptRequest(view: WebView, request: WebResourceRequest): WebResourceResponse? {
                 val uri = request.url
@@ -102,23 +125,40 @@ private class RouteMapView(context: Context) : WebView(context) {
                     runCatching { context.startActivity(Intent(Intent.ACTION_VIEW,Uri.parse("https://www.openstreetmap.org/copyright"))) }
                 return true
             }
+            override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
+                if(request.isForMainFrame && !released) post { if(!released) failed() }
+            }
             override fun onPageFinished(view: WebView, url: String) {
-                if (url=="https://appassets.androidplatform.net/assets/map/index.html") { ready=true; render(pending) }
+                if (!released && url=="https://appassets.androidplatform.net/assets/map/index.html") { ready=true; render(pending) }
             }
         }
         setOnTouchListener { view, event ->
             view.parent?.requestDisallowInterceptTouchEvent(event.actionMasked!=MotionEvent.ACTION_UP && event.actionMasked!=MotionEvent.ACTION_CANCEL)
             false
         }
+        postDelayed(watchdog,10_000)
         loadUrl("https://appassets.androidplatform.net/assets/map/index.html")
     }
     fun releaseMap() {
+        released=true; removeCallbacks(watchdog)
         ready=false; pending=""
         webViewClient=WebViewClient()
         stopLoading(); destroy()
     }
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w,h,oldw,oldh)
+        post { if(!released) render(pending) }
+    }
     fun render(json: String) {
+        if(released) return
         pending=json
-        if (ready && json.isNotEmpty()) evaluateJavascript("window.renderMetro($json);",null)
+        if (ready && json.isNotEmpty() && width>0 && height>0) {
+            val density=resources.displayMetrics.density
+            val w=kotlin.math.round(width/density).toInt()
+            val h=kotlin.math.round(height/density).toInt()
+            evaluateJavascript("typeof window.metroFrame==='function' && window.metroFrame($json,$w,$h);" ) { result ->
+                if(!released && result=="true") { painted=true; removeCallbacks(watchdog) }
+            }
+        }
     }
 }

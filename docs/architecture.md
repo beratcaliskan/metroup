@@ -30,6 +30,12 @@
 
 `assets/map`: Leaflet 1.9.4 dağıtımı (BSD-2-Clause lisansı yanında), yerel HTML/CSS/JS, çevrimdışı hat katmanı ve etkileşimler. Görünür OSM atfı ve harita yüklenemedi uyarısı vardır. İnternet izni yalnızca sokak haritası için eklendi; alarm/hat katmanı çevrimdışı kalır. `RouteMapStateTest` gerçek/eski/tahmini konum ayrımını ve iki yönde ilerlemeyi kapsar. Harita HTML'i ayrıca masaüstü Chrome'da mobil viewport ile online/offline, rota geçişi, konuma gitme, kamera kararlılığı ve JS hata kontrolünden geçirildi. Android WebView/kilit ekranı/fiziksel cihaz doğrulaması henüz yapılmadı.
 
+### WebView başlatma ve kurtarma (0.4.1)
+
+Kullanıcı cihazında düğmeler görünürken harita boş kaldı. Fiziksel cihaz/logcat erişimi olmadığından kök neden kesinleştirilmedi; sıfır yükseklikli WebView içeriğiyle benzer başlatma sorunu testte oluşturuldu. Native `onSizeChanged` ve sayfa yüklemesinden sonra `metroFrame` boyut aktarımı yapar. JavaScript viewport'u piksel olarak kurar, Leaflet'i yeniden ölçer ve başarılı ölçüm/durak çizimini native'e döndürür. `onPageFinished` artık tek başına başarılı çizim kabul edilmez.
+
+10 sn çizim onayı alınmazsa veya ana sayfa yüklemesi hata verirse native Compose Canvas `OfflineRouteMap` açılır. Manuel hat görünümü seçimi GPU/WebView kaynaklı ve JS'nin fark edemediği çizim sorunları için de kullanılabilir. WebView kaldırılırken callback/watchdog temizlenir. `RouteMapProjection` kuzey yukarı, enlem düzeltmeli bir coğrafi izdüşümle hat ve konumu çizer; ayrı birim testleri bütün güzergâhların çerçeveye sığmasını kontrol eder. Gerçek telefon doğrulaması bekliyor.
+
 ## Opsiyonel Supabase tasarımı (uygulanmadı)
 
 Alarm yolu her zaman yerel kalmalı. İlk ağ bağlantısında doğrulanmış ve sürümlenmiş hat kataloğu indirilip yerel SQLite/Room deposuna atomik yazılabilir. Her aralığa ayrı süre, örnek sayısı, güncelleme tarihi ve kaynak eklenmeli. Mevcut MVP her aralık için kullanıcının seçtiği aynı süreyi kullanıyor.

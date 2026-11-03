@@ -13,7 +13,12 @@ const toStations=rows=>rows.map(s=>({name:s.name,point:[s.latitude,s.longitude]}
  const page=await browser.newPage({viewport:{width:390,height:650},deviceScaleFactor:1});let errors=[];page.on('pageerror',e=>errors.push(e.message));
  await page.goto('http://127.0.0.1:'+server.address().port+'/index.html');await page.waitForFunction(()=>typeof window.renderMetro==='function');
  const state={routeId:'M2',code:'M2',color:'#36b68d',stations:toStations(base),start:0,destination:14,alarm:12,estimated:[41.045,28.9865],measured:{point:[41.0453,28.9866],accuracy:18,age:1,live:true}};
- await page.evaluate(s=>window.renderMetro(s),state);await page.waitForTimeout(2000);
+ // Reproduce AndroidView loading before its final layout height arrives.
+ await page.evaluate(()=>{document.documentElement.style.height='0px';document.body.style.height='0px';const el=document.getElementById('map');el.style.height='0px';el.style.minHeight='0px';map.invalidateSize({pan:false});});
+ if(await page.evaluate(()=>document.getElementById('map').clientHeight)!==0)throw Error('Zero-height regression setup failed');
+ const recovered=await page.evaluate(s=>window.metroFrame(s,390,340),state);
+ if(!recovered||await page.evaluate(()=>document.getElementById('map').clientHeight)!==340)throw Error('Native viewport recovery failed');
+ await page.evaluate(()=>window.resizeMetro(390,650));await page.waitForTimeout(2000);
  if(await page.evaluate(()=>stationMarkers.length)!==15)throw Error('M2 station count');
  await page.screenshot({path:'.tools/map-m2-online.png'});
  await page.locator('#locate').click();await page.waitForTimeout(1000);if(await page.evaluate(()=>map.getZoom())!==16)throw Error('Locate zoom');

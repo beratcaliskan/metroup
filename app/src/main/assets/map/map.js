@@ -55,3 +55,20 @@ window.renderMetro=function(next){
     if(following){const target=(state.measured&&state.measured.live)?state.measured.point:state.estimated;if(target)map.panTo(target,{animate:false});}
 };
 window.addEventListener("resize",()=>map.invalidateSize());
+
+// AndroidView may finish loading before Compose gives WebView its final size.
+window.resizeMetro=function(width,height){
+    if(!(width>0&&height>0))return;
+    document.documentElement.style.width=width+"px";
+    document.documentElement.style.height=height+"px";
+    document.body.style.width=width+"px";
+    document.body.style.height=height+"px";
+    document.getElementById("map").style.height=height+"px";
+    map.invalidateSize({animate:false,pan:false});
+    if(line&&!following)map.fitBounds(line.getBounds(),{padding:[30,55],maxZoom:15,animate:false});
+};
+window.metroFrame=function(data,width,height){
+    if(width>0&&height>0&&(map.getSize().x!==width||map.getSize().y!==height))window.resizeMetro(width,height);
+    window.renderMetro(data);
+    return map.getSize().x>0&&map.getSize().y>0&&stationMarkers.length===data.stations.length;
+};
