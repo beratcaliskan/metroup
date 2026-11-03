@@ -2,13 +2,13 @@
 
 ## Çalışan yerel uygulama
 
-`Journey.kt`: Android'den bağımsız hesaplama; yön, durak sayısı, tekdüze aralık süresi, alarm noktası. Birim testleri iki yönü, gecikme düzeltmesini ve sınırları kapsar.
+`Journey.kt`: Android'den bağımsız hesaplama; yön, durak sayısı, tekdüze aralık süresi, alarm noktası. Birim testleri iki yönü, gecikme düzeltmesini, hattın korunmasını ve sınırları kapsar. Journey hat kimliğini taşır; Store hat kimliği olmayan eski kayıtlarda M1A kullanır.
 
 `Store.kt`: SharedPreferences içinde tek aktif yolculuk ve son doğrulanan durak/zaman. Boot count ile yeniden başlatma tespiti. Bulut hesabı yok.
 
 `Alarms.kt`: monotonic kesin alarm, BroadcastReceiver, mediaPlayback foreground service ile döngülü alarm sesi ve titreşim. AlarmManager uygulama süreci ölse de alarmı tutar; force-stop veya yeniden başlatma hariç.
 
-`StationCatalog.kt`: İBB kaynağından sıralanmış 18 M1A koordinatı. Kaynak kopyası `docs/m1a-stations.json` ve ayrıntılar `docs/station-data.md` içinde.
+`StationCatalog.kt`: İBB kaynağından sıralanmış 18 M1A koordinatı. `Routes.kt` M1A, M2 ana hat ve Seyrantepe kolunu istasyon isimleri ve koordinatlarıyla ayrı güzergâhlar olarak sunar. Kaynak kopyaları `docs/m1a-stations.json`, `docs/m2-stations.json` ve ayrıntılar `docs/station-data.md` içinde.
 
 `StationMatcher.kt`: Android'den bağımsız yakınlık, doğruluk, tazelik, belirsiz eşleşme ve iki ölçüm kontrolü. Sonlu olmayan koordinatlar, eski/tekrarlı GPS ölçümleri reddedilir. Seçili güzergâh dışındaki duraklar alarmı değiştirmez.
 

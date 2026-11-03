@@ -1,0 +1,114 @@
+[
+  {
+    "id": 20,
+    "order": 1,
+    "name": "Yenikapı",
+    "latitude": 41.0055971704,
+    "longitude": 28.9513306172
+  },
+  {
+    "id": 21,
+    "order": 2,
+    "name": "Vezneciler-İstanbul Ü.",
+    "latitude": 41.011475,
+    "longitude": 28.960705
+  },
+  {
+    "id": 22,
+    "order": 3,
+    "name": "Haliç",
+    "latitude": 41.0224366195,
+    "longitude": 28.9664183343
+  },
+  {
+    "id": 23,
+    "order": 4,
+    "name": "Şişhane",
+    "latitude": 41.028298,
+    "longitude": 28.97285
+  },
+  {
+    "id": 24,
+    "order": 5,
+    "name": "Taksim",
+    "latitude": 41.038496,
+    "longitude": 28.985783
+  },
+  {
+    "id": 25,
+    "order": 6,
+    "name": "Osmanbey",
+    "latitude": 41.052955,
+    "longitude": 28.987375
+  },
+  {
+    "id": 26,
+    "order": 7,
+    "name": "Şişli-Mecidiyeköy",
+    "latitude": 41.0645069127,
+    "longitude": 28.9926697578
+  },
+  {
+    "id": 27,
+    "order": 8,
+    "name": "Gayrettepe",
+    "latitude": 41.0690012375,
+    "longitude": 29.0109200808
+  },
+  {
+    "id": 28,
+    "order": 9,
+    "name": "Levent",
+    "latitude": 41.0767734293,
+    "longitude": 29.0136876237
+  },
+  {
+    "id": 29,
+    "order": 10,
+    "name": "4.Levent",
+    "latitude": 41.0860080659,
+    "longitude": 29.0070897722
+  },
+  {
+    "id": 30,
+    "order": 11,
+    "name": "Sanayi Mahallesi",
+    "latitude": 41.0943240181,
+    "longitude": 29.0053380126
+  },
+  {
+    "id": 31,
+    "order": 12,
+    "name": "Seyrantepe",
+    "latitude": 41.100906,
+    "longitude": 28.997775
+  },
+  {
+    "id": 32,
+    "order": 13,
+    "name": "İTÜ-Ayazağa",
+    "latitude": 41.108094796,
+    "longitude": 29.0207947235
+  },
+  {
+    "id": 33,
+    "order": 14,
+    "name": "Atatürk Oto Sanayi",
+    "latitude": 41.1182574386,
+    "longitude": 29.0241897659
+  },
+  {
+    "id": 34,
+    "order": 15,
+    "name": "Darüşşafaka",
+    "latitude": 41.1295823098,
+    "longitude": 29.0251244919
+  },
+  {
+    "id": 35,
+    "order": 16,
+    "name": "Hacıosman",
+    "latitude": 41.1397745691,
+    "longitude": 29.0304324362
+  }
+]

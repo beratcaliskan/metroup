@@ -3,17 +3,17 @@ package com.metroup
 import kotlin.math.*
 
 data class GpsFix(val point: GeoPoint, val accuracyMeters: Double, val elapsed: Long)
-data class StationMatch(val station: Int, val distanceMeters: Double, val elapsed: Long)
+data class StationMatch(val station: Int, val distanceMeters: Double, val elapsed: Long, val routeId: String = "M1A")
 
 // Pure matching logic: no Android dependency, timestamps use elapsedRealtime.
-class StationMatcher {
+class StationMatcher(private val route: MetroRoute = Routes.m1a) {
     private var pending: StationMatch? = null
     private var lastObserved = -1L
-    fun nearest(fix: GpsFix, now: Long, indices: List<Int> = M1A.stations.indices.toList()): StationMatch? {
+    fun nearest(fix: GpsFix, now: Long, indices: List<Int> = route.stations.indices.toList()): StationMatch? {
         if (!usable(fix, now)) return null
-        // Rank all M1A stations first, so an out-of-route station cannot be
+        // Rank all selected-route stations first, so an out-of-route station cannot be
         // mistaken for a less close in-route neighbour.
-        val ranked = StationCatalog.points.mapIndexed { i, point -> StationMatch(i, distance(fix.point, point), fix.elapsed) }.sortedBy { it.distanceMeters }
+        val ranked = route.points.mapIndexed { i, point -> StationMatch(i, distance(fix.point, point), fix.elapsed, route.id) }.sortedBy { it.distanceMeters }
         val best = ranked.first()
         if (best.station !in indices || best.distanceMeters + fix.accuracyMeters > 180 ||
             ranked[1].distanceMeters - best.distanceMeters < 100) return null

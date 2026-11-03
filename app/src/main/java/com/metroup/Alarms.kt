@@ -53,7 +53,7 @@ class RingingService : Service() {
         val stop = PendingIntent.getService(this, 2, Intent(this, RingingService::class.java).setAction("STOP"), PendingIntent.FLAG_IMMUTABLE)
         startForeground(42, NotificationCompat.Builder(this, "ring")
             .setSmallIcon(android.R.drawable.ic_lock_idle_alarm).setContentTitle("Uyanma zamanı!")
-            .setContentText("${M1A.stations[j.destination]} için ${j.before} durak önce • tahmini")
+            .setContentText("${j.route.stations[j.destination]} için ${j.before} durak önce • tahmini")
             .setContentIntent(Alarms.open(this)).setOngoing(true).setCategory(NotificationCompat.CATEGORY_ALARM)
             .addAction(0, "Alarmı durdur", stop).build())
         if (player == null) {

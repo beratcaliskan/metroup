@@ -32,7 +32,9 @@ import kotlin.math.abs
 class MainActivity : ComponentActivity(), LocationListener {
     private var latestFix by mutableStateOf<GpsFix?>(null)
     private var nearby by mutableStateOf<StationMatch?>(null)
-    private val nearbyMatcher = StationMatcher()
+    private var selectedRouteId by mutableStateOf("M1A")
+    private val selectedRoute get() = Routes.get(selectedRouteId)
+    private var nearbyMatcher = StationMatcher()
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { startGps() }
     override fun onResume() { super.onResume(); startGps() }
     override fun onPause() {
@@ -50,7 +52,7 @@ class MainActivity : ComponentActivity(), LocationListener {
         val fix = GpsFix(GeoPoint(location.latitude, location.longitude), location.accuracy.toDouble(), location.elapsedRealtimeNanos / 1_000_000)
         latestFix = fix
         val now = SystemClock.elapsedRealtime()
-        val match = nearbyMatcher.accept(fix, now, M1A.stations.indices.toList())
+        val match = nearbyMatcher.accept(fix, now, selectedRoute.stations.indices.toList())
         if (nearbyMatcher.nearest(fix, now) == null) nearby = null
         else if (match != null) nearby = match
     }
@@ -61,6 +63,7 @@ class MainActivity : ComponentActivity(), LocationListener {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Store(this).load()?.let { selectedRouteId = it.routeId; nearbyMatcher = StationMatcher(it.route) }
         setContent { MetroScreen() }
     }
     private fun notificationsAllowed(): Boolean = getSystemService(NotificationManager::class.java).areNotificationsEnabled()
@@ -75,13 +78,14 @@ class MainActivity : ComponentActivity(), LocationListener {
     private fun MetroScreen() {
         val store = remember { Store(this) }
         var journey by remember { mutableStateOf(store.load()) }
+        val route = journey?.route ?: selectedRoute
         var now by remember { mutableLongStateOf(SystemClock.elapsedRealtime()) }
-        var start by remember { mutableIntStateOf(8) }
-        var dest by remember { mutableIntStateOf(0) }
-        var before by remember { mutableIntStateOf(2) }
+        var start by remember { mutableIntStateOf(if (selectedRoute.id == "M1A") 8 else 0) }
+        var dest by remember { mutableIntStateOf(if (selectedRoute.id == "M1A") 0 else selectedRoute.stations.lastIndex) }
+        var before by remember { mutableIntStateOf(if (selectedRoute.id == "M2_SHUTTLE") 1 else 2) }
         var seconds by remember { mutableIntStateOf(120) }
         var error by remember { mutableStateOf<String?>(null) }
-        var confirm by remember { mutableIntStateOf(8) }
+        var confirm by remember { mutableIntStateOf(if (selectedRoute.id == "M1A") 8 else 0) }
         var exact by remember { mutableStateOf(Alarms.allowed(this)) }
         var notify by remember { mutableStateOf(notificationsAllowed()) }
         LaunchedEffect(Unit) {
@@ -100,7 +104,7 @@ class MainActivity : ComponentActivity(), LocationListener {
                 Column(Modifier.safeDrawingPadding().verticalScroll(rememberScrollState()).padding(24.dp), verticalArrangement = Arrangement.spacedBy(20.dp)) {
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
                         Text("metroUP", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold)
-                        Text("İSTANBUL / M1A", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                        Text("İSTANBUL / ${route.code}", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                     }
                     Text(if (journey == null) "Yolun akışına\nbiraz mola ver." else if (journey!!.ringing) "Uyanma zamanı." else "Biraz dinlen.\nAlarmın kurulu.", fontSize = 36.sp, lineHeight = 42.sp, fontWeight = FontWeight.Bold)
                     Text("Durağını seç. Alarmını kur. Yolculuğuna ara ver.", color = Color(0xFFABB9BF))
@@ -108,14 +112,22 @@ class MainActivity : ComponentActivity(), LocationListener {
                     if (j == null) {
                         Panel {
                             Text("01  YOLCULUĞUN", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                            RoutePicker(route) { selected ->
+                                selectedRouteId = selected.id
+                                nearby = null; nearbyMatcher = StationMatcher(selected)
+                                start = 0; dest = selected.stations.lastIndex
+                                before = if (selected.stations.size == 2) 1 else 2
+                                confirm = 0; error = null
+                            }
+                            if (route.id == "M2_SHUTTLE") Text("Seyrantepe kolu: aktarmayı Sanayi Mahallesi'nde yap. Tek aralıkta 1 durak önce alarm başlangıçta çalar.", fontSize = 12.sp)
                             val detected = nearby?.takeIf { now - it.elapsed in 0..30_000L }
                             if (detected != null) {
-                                Text("GPS yakını: ${M1A.stations[detected.station]} • ${detected.distanceMeters.toInt()} m", color = MaterialTheme.colorScheme.primary)
+                                Text("GPS yakını: ${route.stations[detected.station]} • ${detected.distanceMeters.toInt()} m", color = MaterialTheme.colorScheme.primary)
                                 TextButton(onClick = { start = detected.station }) { Text("Biniş durağı olarak seç") }
-                            } else Text("GPS: M1A durak yakınlığı doğrulanmadan alarm başlatılamaz.", fontSize = 12.sp)
-                            StationPicker("Biniş durağı", start, M1A.stations.indices.toList()) { start = it }
+                            } else Text("GPS: ${route.code} durak yakınlığı doğrulanmadan alarm başlatılamaz.", fontSize = 12.sp)
+                            StationPicker(route, "Biniş durağı", start, route.stations.indices.toList()) { start = it }
                             TextButton(onClick = { val old = start; start = dest; dest = old }) { Text("↑↓ Yönü değiştir") }
-                            StationPicker("Varış durağı", dest, M1A.stations.indices.toList()) { dest = it }
+                            StationPicker(route, "Varış durağı", dest, route.stations.indices.toList()) { dest = it }
                         }
                         Panel {
                             Text("02  BENİ NE ZAMAN UYANDIR?", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
@@ -125,24 +137,24 @@ class MainActivity : ComponentActivity(), LocationListener {
                             Text("Durak arası ortalama: ${seconds / 60} dk ${seconds % 60} sn")
                             Slider(value = seconds.toFloat(), onValueChange = { seconds = (it / 15).toInt() * 15 }, valueRange = 60f..300f, steps = 15)
                             val count = abs(dest - start)
-                            Text(if (count > before) "${count} durak aralığı • Alarm yaklaşık ${(count - before) * seconds / 60} dk sonra" else "Daha uzak bir varış seç; alarm binişten sonra olmalı.", color = Color(0xFFABB9BF))
+                            Text(if (count == before && count > 0) "Alarm binişte hemen çalacak." else if (count > before) "${count} durak aralığı • Alarm yaklaşık ${(count - before) * seconds / 60} dk sonra" else "Daha uzak bir varış veya daha az durak önce uyarı seç.", color = Color(0xFFABB9BF))
                         }
                     } else {
                         Panel {
                             Text(if (j.ringing) "VARIŞ ALARMI" else "ALARM İÇİN KALAN TAHMİNİ SÜRE", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                             val remaining = ((j.alarmElapsed - now).coerceAtLeast(0) / 1000)
                             Text(if (j.ringing) "Uyan!" else "%02d:%02d".format(remaining / 60, remaining % 60), fontSize = 56.sp, fontWeight = FontWeight.Bold)
-                            Text("${M1A.stations[j.start]} → ${M1A.stations[j.destination]}")
-                            Text("${j.before} durak önce: ${M1A.stations[j.alarmStation]}", color = MaterialTheme.colorScheme.primary)
+                            Text("${route.stations[j.start]} → ${route.stations[j.destination]}")
+                            Text("${j.before} durak önce: ${route.stations[j.alarmStation]}", color = MaterialTheme.colorScheme.primary)
                             HorizontalDivider()
                             val gpsFresh = j.source.startsWith("GPS") && now - j.anchorElapsed in 0..30_000L
-                            Text(if (gpsFresh) "GPS yakını: ${M1A.stations[j.anchor]}" else "Süre tahmini: ${M1A.stations[j.estimatedStation(now)]}")
-                            Text("Son dayanak: ${j.source} • ${M1A.stations[j.anchor]}", fontSize = 12.sp)
+                            Text(if (gpsFresh) "GPS yakını: ${route.stations[j.anchor]}" else "Süre tahmini: ${route.stations[j.estimatedStation(now)]}")
+                            Text("Son dayanak: ${j.source} • ${route.stations[j.anchor]}", fontSize = 12.sp)
                             Text("Konum doğrulanmazsa süreyle ilerler. Gecikmeler tahmini değiştirebilir.", color = Color(0xFFABB9BF), fontSize = 12.sp)
                         }
                         if (!j.ringing) Panel {
                             Text("DURAKTAYSAN TAHMİNİ DÜZELT", fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
-                            StationPicker("Şu anda bulunduğum durak", confirm.coerceIn(minOf(j.start, j.destination), maxOf(j.start, j.destination)), (minOf(j.start,j.destination)..maxOf(j.start,j.destination)).toList()) { confirm = it }
+                            StationPicker(route, "Şu anda bulunduğum durak", confirm.coerceIn(minOf(j.start, j.destination), maxOf(j.start, j.destination)), (minOf(j.start,j.destination)..maxOf(j.start,j.destination)).toList()) { confirm = it }
                             OutlinedButton(onClick = {
                                 runCatching {
                                     val station = confirm.coerceIn(minOf(j.start,j.destination), maxOf(j.start,j.destination))
@@ -164,7 +176,7 @@ class MainActivity : ComponentActivity(), LocationListener {
                     if (j == null) {
                         val problem = BoardingGuard.problem(latestFix, nearby, start, now,
                             ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED,
-                            getSystemService(LocationManager::class.java).isProviderEnabled(LocationManager.GPS_PROVIDER))
+                            getSystemService(LocationManager::class.java).isProviderEnabled(LocationManager.GPS_PROVIDER), route)
                         problem?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
                     }
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -174,16 +186,16 @@ class MainActivity : ComponentActivity(), LocationListener {
                             check(exact && notify) { "Önce kesin alarm ve bildirim izinlerini aç." }
                             val locationProblem = BoardingGuard.problem(latestFix, nearby, start, SystemClock.elapsedRealtime(),
                                 ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED,
-                                getSystemService(LocationManager::class.java).isProviderEnabled(LocationManager.GPS_PROVIDER))
+                                getSystemService(LocationManager::class.java).isProviderEnabled(LocationManager.GPS_PROVIDER), route)
                             check(locationProblem == null) { locationProblem ?: "Konum doğrulanamadı." }
-                            val created = Journey.create(start, dest, before, seconds, SystemClock.elapsedRealtime()).copy(source = "GPS biniş doğrulaması")
+                            val created = Journey.create(start, dest, before, seconds, SystemClock.elapsedRealtime(), route).copy(source = "GPS biniş doğrulaması")
                             store.save(created)
                             try { Alarms.schedule(this@MainActivity, created) } catch (e: Exception) { store.clear(); throw e }
                             journey = created; confirm = start; error = null
                             try { startForegroundService(Intent(this@MainActivity, TrackingService::class.java)) }
                             catch (e: Exception) { Alarms.stop(this@MainActivity); journey = null; throw e }
                         }.onFailure { error = it.message }
-                    }, modifier = Modifier.fillMaxWidth().height(60.dp), shape = RoundedCornerShape(18.dp), enabled = j != null || (abs(dest-start) > before && exact && notify)) {
+                    }, modifier = Modifier.fillMaxWidth().height(60.dp), shape = RoundedCornerShape(18.dp), enabled = j != null || (abs(dest-start) >= before && start != dest && exact && notify)) {
                         Text(if (j == null) "Yolculuğu başlat →" else if (j.ringing) "Uyandım • alarmı kapat" else "Yolculuğu bitir", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
                     if (j == null) TextButton(onClick = { requestPermissions() }) { Text("Konum ve bildirim izinlerini aç") }
@@ -201,17 +213,28 @@ private fun Panel(content: @Composable ColumnScope.() -> Unit) {
 }
 
 @Composable
-private fun StationPicker(label: String, selected: Int, indices: List<Int>, onSelect: (Int) -> Unit) {
-    var expanded by remember { mutableStateOf(false) }
+private fun StationPicker(route: MetroRoute, label: String, selected: Int, indices: List<Int>, onSelect: (Int) -> Unit) {
+    var expanded by remember(route.id) { mutableStateOf(false) }
     Column {
         Text(label, color = Color(0xFFABB9BF), fontSize = 12.sp)
         Box {
             OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp)) {
-                Text(M1A.stations[selected], modifier = Modifier.weight(1f)); Text("⌄")
+                Text(route.stations[selected], modifier = Modifier.weight(1f)); Text("⌄")
             }
             DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
-                indices.forEach { index -> DropdownMenuItem(text = { Text(M1A.stations[index]) }, onClick = { onSelect(index); expanded = false }) }
+                indices.forEach { index -> DropdownMenuItem(text = { Text(route.stations[index]) }, onClick = { onSelect(index); expanded = false }) }
             }
+        }
+    }
+}
+
+@Composable
+private fun RoutePicker(route: MetroRoute, onSelect: (MetroRoute) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }, modifier = Modifier.fillMaxWidth()) { Text(route.label) }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            Routes.all.forEach { item -> DropdownMenuItem(text = { Text(item.label) }, onClick = { expanded = false; if (item.id != route.id) onSelect(item) }) }
         }
     }
 }

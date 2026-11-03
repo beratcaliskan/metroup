@@ -11,7 +11,8 @@ import androidx.core.content.ContextCompat
 
 class TrackingService : Service(), LocationListener {
     private lateinit var manager: LocationManager
-    private val matcher = StationMatcher()
+    private var matcher = StationMatcher()
+    private var matcherRouteId = "M1A"
     private val handler = Handler(Looper.getMainLooper())
     private val refresh = object : Runnable {
         override fun run() {
@@ -27,10 +28,10 @@ class TrackingService : Service(), LocationListener {
         val stop = PendingIntent.getBroadcast(this, 3, Intent(this, TripActionReceiver::class.java), PendingIntent.FLAG_IMMUTABLE)
         return NotificationCompat.Builder(this, "trip")
             .setSmallIcon(android.R.drawable.ic_menu_mylocation)
-            .setContentTitle("M1A → ${M1A.stations[j.destination]}")
+            .setContentTitle("${j.route.code} → ${j.route.stations[j.destination]}")
             .setContentText(status.position)
             .setStyle(NotificationCompat.BigTextStyle().bigText(
-                "${status.position}\nVarışa ${status.stopsLeft} durak • ${j.before} durak önce uyarı\nAlarm durağı: ${M1A.stations[j.alarmStation]}\nGeri sayım tahminidir; GPS yoksa süreyle ilerler."))
+                "${status.position}\nVarışa ${status.stopsLeft} durak • ${j.before} durak önce uyarı\nAlarm durağı: ${j.route.stations[j.alarmStation]}\nGeri sayım tahminidir; GPS yoksa süreyle ilerler."))
             .setSubText("Alarma kalan tahmini süre")
             .setWhen(System.currentTimeMillis() + status.remainingMillis)
             .setUsesChronometer(status.remainingMillis > 0).setChronometerCountDown(true)
@@ -60,6 +61,9 @@ class TrackingService : Service(), LocationListener {
         val store = Store(this)
         val j = store.load() ?: run { stopSelf(); return }
         if (j.ringing || !location.hasAccuracy()) return
+        if (matcherRouteId != j.routeId) {
+            matcher = StationMatcher(j.route); matcherRouteId = j.routeId
+        }
         val now = SystemClock.elapsedRealtime()
         val fix = GpsFix(GeoPoint(location.latitude, location.longitude), location.accuracy.toDouble(), location.elapsedRealtimeNanos / 1_000_000)
         val match = matcher.accept(fix, now, (minOf(j.start, j.destination)..maxOf(j.start, j.destination)).toList()) ?: return

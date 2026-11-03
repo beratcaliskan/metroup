@@ -1,0 +1,5 @@
+// Keep Gradle outputs off synced folders; source code stays in the workspace.
+allprojects {
+    def buildRoot = System.getenv('METROUP_BUILD_ROOT')
+    if (buildRoot) layout.buildDirectory.set(file(buildRoot + '/' + project.name))
+}

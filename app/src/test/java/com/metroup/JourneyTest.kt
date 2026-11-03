@@ -30,7 +30,7 @@ class JourneyTest {
         assertEquals(8, j.estimatedStation(0))
     }
     @Test fun rejectInvalidRoutes() {
-        listOf({ Journey.create(8,8,1,120,0) }, { Journey.create(8,7,1,120,0) },
+        listOf({ Journey.create(8,8,1,120,0) }, { Journey.create(8,7,2,120,0) },
             { Journey.create(8,0,4,120,0) }, { Journey.create(-1,0,1,120,0) },
             { Journey.create(8,0,1,0,0) }).forEach { factory ->
             assertThrows(IllegalArgumentException::class.java) { factory() }

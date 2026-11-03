@@ -14,8 +14,9 @@ object M1A {
 data class Journey(
     val start: Int, val destination: Int, val before: Int, val segmentSeconds: Int,
     val anchor: Int, val anchorElapsed: Long, val alarmElapsed: Long,
-    val source: String = "Süre tahmini", val ringing: Boolean = false
+    val source: String = "Süre tahmini", val ringing: Boolean = false, val routeId: String = "M1A"
 ) {
+    val route get() = Routes.get(routeId)
     val direction get() = if (destination > start) 1 else -1
     val alarmStation get() = destination - direction * before
     fun estimatedStation(now: Long): Int {
@@ -29,11 +30,11 @@ data class Journey(
             alarmElapsed = now + remaining * segmentSeconds * 1000L, source = source)
     }
     companion object {
-        fun create(start: Int, destination: Int, before: Int, seconds: Int, now: Long): Journey {
-            require(start in M1A.stations.indices && destination in M1A.stations.indices)
-            require(start != destination && before in 1..3 && before < abs(destination - start))
+        fun create(start: Int, destination: Int, before: Int, seconds: Int, now: Long, route: MetroRoute = Routes.m1a): Journey {
+            require(start in route.stations.indices && destination in route.stations.indices)
+            require(start != destination && before in 1..3 && before <= abs(destination - start))
             require(seconds in 60..300)
-            return Journey(start, destination, before, seconds, start, now, now)
+            return Journey(start, destination, before, seconds, start, now, now, routeId = route.id)
                 .reanchor(start, now, "Başlangıç onayı")
         }
     }
