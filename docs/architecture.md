@@ -22,6 +22,14 @@
 
 `MainActivity.kt`: yalnızca ekran görünürken GPS ile yakın durak önerisi; kullanıcı binişi onaylar. Aktif yolculukta GPS izni sonradan verilirse takip servisi başlatılır. Ham koordinatlar kalıcı kaydedilmez.
 
+## Harita katmanı
+
+`RouteMapState.kt` ölçülen koordinat ile hat üzerindeki tahmini ilerlemeyi ayırır; rota değişiminde önceki hattın eşleşmesini kullanmaz. Tahmin hat segmentleri arasında enterpolasyonla çizilir; gerçek ray şekli değildir. Ham ölçüm çizgiye yapıştırılmaz. 10 sn sonrasında ölçüm eski işaretlenir; 5 dk sonrasında gizlenir. No-fix halinde gerçek konum üretilmez.
+
+`RouteMap.kt` yerel harita varlıklarını WebViewAssetLoader HTTPS origin'inden sunar ve JSON verisini evaluateJavascript ile iletir. Uzak script, keyfi URL navigasyonu, dosya/içerik erişimi, WebView geolocation ve native JS bridge kapalıdır. İzin verilen tek uzak görsel kaynağı tile.openstreetmap.org'dur. OSM atıf bağlantısı sistem tarayıcısında açılır. Açık uygulama User-Agent'i ve varsayılan HTTP cache kullanılır; bulk/prefetch indirme yoktur. Harita taşınırken kamera veri güncellemelerinde sıfırlanmaz; yalnızca açık takip modunda konuma pan yapılır.
+
+`assets/map`: Leaflet 1.9.4 dağıtımı (BSD-2-Clause lisansı yanında), yerel HTML/CSS/JS, çevrimdışı hat katmanı ve etkileşimler. Görünür OSM atfı ve harita yüklenemedi uyarısı vardır. İnternet izni yalnızca sokak haritası için eklendi; alarm/hat katmanı çevrimdışı kalır. `RouteMapStateTest` gerçek/eski/tahmini konum ayrımını ve iki yönde ilerlemeyi kapsar. Harita HTML'i ayrıca masaüstü Chrome'da mobil viewport ile online/offline, rota geçişi, konuma gitme, kamera kararlılığı ve JS hata kontrolünden geçirildi. Android WebView/kilit ekranı/fiziksel cihaz doğrulaması henüz yapılmadı.
+
 ## Opsiyonel Supabase tasarımı (uygulanmadı)
 
 Alarm yolu her zaman yerel kalmalı. İlk ağ bağlantısında doğrulanmış ve sürümlenmiş hat kataloğu indirilip yerel SQLite/Room deposuna atomik yazılabilir. Her aralığa ayrı süre, örnek sayısı, güncelleme tarihi ve kaynak eklenmeli. Mevcut MVP her aralık için kullanıcının seçtiği aynı süreyi kullanıyor.

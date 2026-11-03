@@ -1,0 +1,13 @@
+html,body,#map{height:100%;width:100%;margin:0;font-family:system-ui,sans-serif}
+#map{background-color:#17272f;background-image:linear-gradient(#25353e 1px,transparent 1px),linear-gradient(90deg,#25353e 1px,transparent 1px);background-size:36px 36px}
+.leaflet-container{font-family:system-ui,sans-serif}.leaflet-control-attribution{font-size:10px!important;background:#fff!important;color:#222!important;max-width:90%}.leaflet-control-attribution a{color:#174c73!important}
+#tools{position:absolute;top:10px;left:10px;z-index:800;display:flex;gap:6px}
+button{background:#17272f;color:#edf5f7;border:1px solid #76909d;border-radius:10px;padding:9px 10px;font-size:12px;box-shadow:0 2px 8px #0005}button:focus-visible{outline:3px solid #b6f36a}
+#tileStatus{position:absolute;bottom:27px;left:8px;right:8px;z-index:700;padding:5px 8px;border-radius:7px;background:#16252ee8;color:#e8eff5;font-size:11px;pointer-events:none}#tileStatus[hidden]{display:none}
+.station-label{background:#17272ff0!important;color:#fff!important;border:1px solid #607781!important;border-radius:7px!important;box-shadow:none!important;font-size:11px!important}.leaflet-tooltip:before{display:none}.leaflet-popup-content{font-size:13px;line-height:1.6}.leaflet-control-zoom a{background:#17272f!important;color:#fff!important}
+.destination{display:flex;align-items:center;justify-content:center;background:#b6f36a;color:#142008;border:3px solid white;border-radius:50%;font-weight:800}.alarm{display:flex;align-items:center;justify-content:center;background:#ed99dc;color:#291226;border:2px solid white;border-radius:5px;font-size:14px;font-weight:800}
+.estimated{width:14px;height:14px;background:#ffac4c;border:3px solid white;transform:rotate(45deg);box-shadow:0 0 0 7px #ffac4c35}
+
+.measured{border:3px solid white;border-radius:50%;box-shadow:0 0 0 5px #258cf530}.measurement-live{background:#258cf5}.measurement-old{background:#8d9ba3;box-shadow:none}
+
+.measured,.estimated,.destination,.alarm{box-sizing:border-box}

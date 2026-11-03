@@ -103,6 +103,7 @@ class MainActivity : ComponentActivity() {
                     Text(if (journey == null) "Yolun akışına\nbiraz mola ver." else if (journey!!.ringing) "Uyanma zamanı." else "Biraz dinlen.\nAlarmın kurulu.", fontSize = 36.sp, lineHeight = 42.sp, fontWeight = FontWeight.Bold)
                     Text("Durağını seç. Alarmını kur. Yolculuğuna ara ver.", color = Color(0xFFABB9BF))
                     val j = journey
+                    RouteMap(RouteMapState.create(route,j,latestFix,nearby,start,dest,before,now),now)
                     if (j == null) {
                         Panel {
                             Text("01  YOLCULUĞUN", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)

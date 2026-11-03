@@ -1,6 +1,6 @@
 # MetroUp
 
-İstanbul M1A ve M2 yolculukları için çevrimdışı durak alarmı. Android 8+; Kotlin, Jetpack Compose Material 3. Hesap, sunucu ve internet olmadan çalışır. İlk çalışan MVP; fiziksel cihazda alarm güvenilirliği henüz doğrulanmadı.
+İstanbul M1A ve M2 yolculukları için çevrimdışı durak alarmı. Android 8+; Kotlin, Jetpack Compose Material 3. Alarm, hat katmanı ve süre tahmini hesap veya sunucu gerektirmeden çevrimdışı çalışır; sokak haritası internet kullanır. İlk çalışan MVP; fiziksel cihazda alarm güvenilirliği henüz doğrulanmadı.
 
 ## Bilgisayarında derleme
 
@@ -50,8 +50,21 @@ Aktif yolculuk foreground service bildirimiyle, uygulama ekranını kapattığı
 
 Alarmı bildirimden veya uygulamadan kapatabilirsin. Ses/titreşim 5 dk ile sınırlıdır. Ekran kilitliyken bildirim gelir; tam ekran açılma uygulanmamıştır. Gecikme, erken hareket ve hat değişimi otomatik olarak bilinemediğinden varış doğruluğu garanti değildir. Yeniden başlatma, zorla durdurma, kesin alarm izninin geri alınması veya üretici pil kısıtlamaları alarmı iptal edebilir. Yeniden başlatmada eski yolculuk temizlenir.
 
+## Harita
+
+Ana ekrandaki haritada seçili hat, duraklar, biniş, **V** ile varış ve **!** ile alarm durağı görünür. Harita parmakla sürüklenebilir/yakınlaştırılabilir; **Büyüt** tam ekran açar. Duraklara dokunmak isimlerini gösterir. **Hattı göster** bütün hattı çerçeveler. **Konumuma git** son güncel ölçümü veya tahmini konumu merkezler ve takibi açar; haritayı sürüklemek takibi durdurur.
+
+- Mavi nokta: son 10 sn içindeki gerçek konum ölçümü; çevresindeki halka bildirilen doğruluk tahminidir.
+- Gri nokta: eski konum ölçümü; 5 dk sonra kaldırılır. Güncel konum gibi gösterilmez.
+- Turuncu elmas: hat üzerindeki eşleşme/süre tahmini. Uydu ölçümüyle aynı şey değildir. Yolculukta internet/konum kesilse de ilerler.
+
+Sokak zemini [OpenStreetMap](https://www.openstreetmap.org/copyright) üzerinden alınır; yerel Leaflet 1.9.4 ve hat katmanları APK içindedir. Zemin yüklenemediğinde uyarı gösterilir, hat/duraklar ve işaretler boş coğrafi zeminde çalışır. Sokak haritalarını çevrimdışı toplu indirme yoktur. Hat çizgisi durak merkezlerini birleştirir; gerçek ray geometrisi değildir.
+
+Harita görünürken OpenStreetMap sunucusuna görüntülenen bölgenin tile istekleri ve standart bağlantı bilgileri gönderilir; haritayı konuma merkezlemek yaklaşık bölgeni açığa çıkarabilir. Kullanıcı koordinatları ayrı bir analitik veya backend servisine gönderilmez. [Tile kullanım politikası](https://operations.osmfoundation.org/policies/tiles/). WebView yalnızca paketlenmiş harita dosyalarını ve HTTPS OSM tile görsellerini yükler; yerel dosya/konum erişimi ve native JavaScript köprüsü yoktur.
+
 ## Cihaz doğrulaması
 
+- Haritada yakınlaştırma, tam ekran, konumu takip, konum kesilince gri nokta/turuncu tahmin ayrımı ve uçak modunda hat katmanını kontrol et.
 - Seçili hat duraklarından uzaktayken, konum kapalıyken ve eski/belirsiz ölçümle başlatmanın engellendiğini kontrol et.
 - Doğrulanmış yakın hat durağında 1 dk/aralık, en az 3 aralık yolculukla alarmı kur; ekran kilitli ve uçak modunda ses/titreşim/bildirim kontrol et.
 - Bildirim ve kesin alarm izni reddedildiğinde başlatmanın engellendiğini kontrol et.
@@ -61,6 +74,8 @@ Alarmı bildirimden veya uygulamadan kapatabilirsin. Ses/titreşim 5 dk ile sın
 - Telefonu yeniden başlatınca eski yolculuğun geri gelmediğini kontrol et.
 - İlk açılış, Google Play services olmayan cihaz, iyi önbellek, düşük doğruluk, 500 ms güncellemeler, hareket halindeyken duraklar arası başlatma ve GPS/network kesilmesini gerçek cihazda kontrol et.
 - GPS ile yakın durak tespiti, arka planda konum, Bluetooth kulaklık yönlendirmesi, DND ve üretici pil optimizasyonlarını gerçek telefonda test et.
+
+Harita tarayıcı smoke testi: `scripts/map-smoke.cjs`. Node.js ve Playwright Core 1.56.1 gerektirir. `PLAYWRIGHT_CORE_MODULE` ortam değişkeniyle kurulu modül yolunu, gerekirse `CHROME_PATH` ile Chrome yolunu verip `node scripts/map-smoke.cjs` çalıştırılabilir. Yerel sunucu ve izole headless Chrome kullanır; örnek M2/M1A/Seyrantepe verileriyle konuma gitme/takip, kamera kararlılığı, eski ölçüm ve tile kesintisi kontrol edilir. Ekran görüntüleri Git'e alınmayan `.tools/map-*.png` dosyalarına yazılır. Android WebView ve fiziksel cihaz testi yerine geçmez.
 
 ## Supabase ve GitHub
 
