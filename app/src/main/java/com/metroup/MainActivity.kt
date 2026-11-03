@@ -30,6 +30,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 
 class MainActivity : ComponentActivity(), LocationListener {
+    private var latestFix by mutableStateOf<GpsFix?>(null)
     private var nearby by mutableStateOf<StationMatch?>(null)
     private val nearbyMatcher = StationMatcher()
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { startGps() }
@@ -45,8 +46,9 @@ class MainActivity : ComponentActivity(), LocationListener {
         if (j != null && !j.ringing) runCatching { startForegroundService(Intent(this, TrackingService::class.java)) }
     }
     override fun onLocationChanged(location: Location) {
-        if (!location.hasAccuracy()) { nearby = null; return }
+        if (!location.hasAccuracy()) { nearby = null; latestFix = null; return }
         val fix = GpsFix(GeoPoint(location.latitude, location.longitude), location.accuracy.toDouble(), location.elapsedRealtimeNanos / 1_000_000)
+        latestFix = fix
         val now = SystemClock.elapsedRealtime()
         val match = nearbyMatcher.accept(fix, now, M1A.stations.indices.toList())
         if (nearbyMatcher.nearest(fix, now) == null) nearby = null
@@ -55,7 +57,7 @@ class MainActivity : ComponentActivity(), LocationListener {
     @Deprecated("Legacy location callback")
     override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
     override fun onProviderEnabled(provider: String) = Unit
-    override fun onProviderDisabled(provider: String) { nearby = null }
+    override fun onProviderDisabled(provider: String) { nearby = null; latestFix = null }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,7 +112,7 @@ class MainActivity : ComponentActivity(), LocationListener {
                             if (detected != null) {
                                 Text("GPS yakını: ${M1A.stations[detected.station]} • ${detected.distanceMeters.toInt()} m", color = MaterialTheme.colorScheme.primary)
                                 TextButton(onClick = { start = detected.station }) { Text("Biniş durağı olarak seç") }
-                            } else Text("GPS: yakın durak bekleniyor. İstersen binişi elle seç.", fontSize = 12.sp)
+                            } else Text("GPS: M1A durak yakınlığı doğrulanmadan alarm başlatılamaz.", fontSize = 12.sp)
                             StationPicker("Biniş durağı", start, M1A.stations.indices.toList()) { start = it }
                             TextButton(onClick = { val old = start; start = dest; dest = old }) { Text("↑↓ Yönü değiştir") }
                             StationPicker("Varış durağı", dest, M1A.stations.indices.toList()) { dest = it }
@@ -159,22 +161,32 @@ class MainActivity : ComponentActivity(), LocationListener {
                         }) { Text("Bildirim iznini aç") }
                         if (!exact && Build.VERSION.SDK_INT >= 31) TextButton(onClick = { startActivity(Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:$packageName"))) }) { Text("Kesin alarm iznini aç") }
                     }
+                    if (j == null) {
+                        val problem = BoardingGuard.problem(latestFix, nearby, start, now,
+                            ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED,
+                            getSystemService(LocationManager::class.java).isProviderEnabled(LocationManager.GPS_PROVIDER))
+                        problem?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
+                    }
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
                     Button(onClick = {
                         if (j != null) { Alarms.stop(this@MainActivity); journey = null }
                         else runCatching {
                             check(exact && notify) { "Önce kesin alarm ve bildirim izinlerini aç." }
-                            val created = Journey.create(start, dest, before, seconds, SystemClock.elapsedRealtime())
+                            val locationProblem = BoardingGuard.problem(latestFix, nearby, start, SystemClock.elapsedRealtime(),
+                                ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED,
+                                getSystemService(LocationManager::class.java).isProviderEnabled(LocationManager.GPS_PROVIDER))
+                            check(locationProblem == null) { locationProblem ?: "Konum doğrulanamadı." }
+                            val created = Journey.create(start, dest, before, seconds, SystemClock.elapsedRealtime()).copy(source = "GPS biniş doğrulaması")
                             store.save(created)
                             try { Alarms.schedule(this@MainActivity, created) } catch (e: Exception) { store.clear(); throw e }
                             journey = created; confirm = start; error = null
-                            if (ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
-                                startForegroundService(Intent(this@MainActivity, TrackingService::class.java))
+                            try { startForegroundService(Intent(this@MainActivity, TrackingService::class.java)) }
+                            catch (e: Exception) { Alarms.stop(this@MainActivity); journey = null; throw e }
                         }.onFailure { error = it.message }
                     }, modifier = Modifier.fillMaxWidth().height(60.dp), shape = RoundedCornerShape(18.dp), enabled = j != null || (abs(dest-start) > before && exact && notify)) {
                         Text(if (j == null) "Yolculuğu başlat →" else if (j.ringing) "Uyandım • alarmı kapat" else "Yolculuğu bitir", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
-                    if (j == null) TextButton(onClick = { requestPermissions() }) { Text("İsteğe bağlı GPS ve bildirim izinleri") }
+                    if (j == null) TextButton(onClick = { requestPermissions() }) { Text("Konum ve bildirim izinlerini aç") }
                     Text("ÇEVRİMDIŞI HAZIR / HESAP GEREKTİRMEZ", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                     Text("Süreler tahminidir. Alarm sesini açık tut. Telefon kapanırsa, yeniden başlarsa veya uygulamayı zorla durdurursan yolculuğu yeniden başlat. İlk kullanımda ekran kilitliyken alarmı dene.", color = Color(0xFFABB9BF), fontSize = 12.sp)
                 }

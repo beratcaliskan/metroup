@@ -12,7 +12,11 @@
 
 `StationMatcher.kt`: Android'den bağımsız yakınlık, doğruluk, tazelik, belirsiz eşleşme ve iki ölçüm kontrolü. Sonlu olmayan koordinatlar, eski/tekrarlı GPS ölçümleri reddedilir. Seçili güzergâh dışındaki duraklar alarmı değiştirmez.
 
-`TrackingService.kt`: aktif yolculukta location foreground service. Kabul edilen GPS durağıyla alarmı yeniden kurar; aynı durakta bekleme sırasında süre tahminini sabitler. GPS yoksa mevcut sistem alarmı ve süre tahmini sürer. Alarm zamanı geçtiyse GPS alarmı ertelemez.
+`BoardingGuard.kt`: güncel ve kaliteli GPS, iki ölçümle durak doğrulaması ve biniş eşleşmesi olmadan başlatmayı reddeder. Konum bulunamaması hattın uzağında olma durumundan ayrı mesajla açıklanır.
+
+`TripProgress.kt`: bildirimde yön, kalan duraklar ve GPS/süre tahmini durumu.
+
+`TrackingService.kt`: aktif yolculukta location foreground service. Kabul edilen GPS durağıyla alarmı yeniden kurar; aynı durakta bekleme sırasında süre tahminini sabitler. GPS yoksa mevcut sistem alarmı ve süre tahmini sürer. Bildirim 15 sn aralıkla yenilenir, Android chronometer geri sayımı gösterir; broadcast action yolculuğu bitirir. Foreground service arayüz kapansa da devam eder; sistem servis sürecini öldürürse START_STICKY ile geri yüklemeyi talep eder (force-stop/yeniden başlatma hariç). Alarm zamanı geçtiyse GPS alarmı ertelemez.
 
 `MainActivity.kt`: yalnızca ekran görünürken GPS ile yakın durak önerisi; kullanıcı binişi onaylar. Aktif yolculukta GPS izni sonradan verilirse takip servisi başlatılır. Ham koordinatlar kalıcı kaydedilmez.
 

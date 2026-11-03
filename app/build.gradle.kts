@@ -29,3 +29,9 @@ dependencies {
     implementation("androidx.core:core-ktx:1.16.0")
     testImplementation("junit:junit:4.13.2")
 }
+
+// OneDrive can keep old binary-results directories locked on Windows.
+// Keep XML/HTML report paths stable; give each test run its own binary output.
+tasks.withType<org.gradle.api.tasks.testing.Test>().configureEach {
+    binaryResultsDirectory.set(layout.buildDirectory.dir("test-binary/$name/${System.currentTimeMillis()}"))
+}

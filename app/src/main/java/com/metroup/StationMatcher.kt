@@ -10,9 +10,7 @@ class StationMatcher {
     private var pending: StationMatch? = null
     private var lastObserved = -1L
     fun nearest(fix: GpsFix, now: Long, indices: List<Int> = M1A.stations.indices.toList()): StationMatch? {
-        if (!fix.accuracyMeters.isFinite() || fix.accuracyMeters !in 0.0..60.0 ||
-            now - fix.elapsed !in 0..30_000L || !fix.point.latitude.isFinite() || !fix.point.longitude.isFinite() ||
-            fix.point.latitude !in -90.0..90.0 || fix.point.longitude !in -180.0..180.0) return null
+        if (!usable(fix, now)) return null
         // Rank all M1A stations first, so an out-of-route station cannot be
         // mistaken for a less close in-route neighbour.
         val ranked = StationCatalog.points.mapIndexed { i, point -> StationMatch(i, distance(fix.point, point), fix.elapsed) }.sortedBy { it.distanceMeters }
@@ -37,6 +35,11 @@ class StationMatcher {
         return match
     }
     companion object {
+        fun usable(fix: GpsFix, now: Long): Boolean =
+            fix.accuracyMeters.isFinite() && fix.accuracyMeters in 0.0..60.0 &&
+            now - fix.elapsed in 0..30_000L && fix.point.latitude.isFinite() && fix.point.longitude.isFinite() &&
+            fix.point.latitude in -90.0..90.0 && fix.point.longitude in -180.0..180.0
+
         fun distance(a: GeoPoint, b: GeoPoint): Double {
             val lat = Math.toRadians(b.latitude - a.latitude)
             val lon = Math.toRadians(b.longitude - a.longitude)
