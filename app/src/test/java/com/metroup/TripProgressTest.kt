@@ -14,7 +14,7 @@ class TripProgressTest {
     }
     @Test fun recentGpsIsShownAsGpsThenFallsBackToTimeEstimate() {
         val j = Journey.create(8,0,2,120,0).copy(source="GPS")
-        assertTrue(TripProgress.from(j,1000).position.startsWith("GPS"))
+        assertTrue(TripProgress.from(j,1000).position.startsWith("Konum"))
         assertTrue(TripProgress.from(j,31000).position.startsWith("Süre"))
     }
     @Test fun countdownAndProgressAreBoundedAfterArrival() {

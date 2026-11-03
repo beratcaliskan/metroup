@@ -4,13 +4,13 @@ import android.Manifest
 import android.app.*
 import android.content.*
 import android.content.pm.PackageManager
-import android.location.*
+import android.location.Location
 import android.os.*
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
 
-class TrackingService : Service(), LocationListener {
-    private lateinit var manager: LocationManager
+class TrackingService : Service() {
+    private val locations by lazy { QuickLocationSource(this, ::onLocationChanged) }
     private var matcher = StationMatcher()
     private var matcherRouteId = "M1A"
     private val handler = Handler(Looper.getMainLooper())
@@ -44,7 +44,7 @@ class TrackingService : Service(), LocationListener {
     override fun onBind(intent: Intent?) = null
     override fun onCreate() {
         super.onCreate()
-        manager = getSystemService(LocationManager::class.java)
+
     }
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val j = Store(this).load() ?: run { stopSelf(); return START_NOT_STICKY }
@@ -53,11 +53,11 @@ class TrackingService : Service(), LocationListener {
         handler.removeCallbacks(refresh)
         handler.postDelayed(refresh, 15_000)
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
-            runCatching { manager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 5_000L, 0f, this) }
+            locations.start()
         }
         return START_STICKY
     }
-    override fun onLocationChanged(location: Location) {
+    private fun onLocationChanged(location: Location) {
         val store = Store(this)
         val j = store.load() ?: run { stopSelf(); return }
         if (j.ringing || !location.hasAccuracy()) return
@@ -70,18 +70,14 @@ class TrackingService : Service(), LocationListener {
         // Renew at the same station while waiting there, rather than drifting
         // forward during a delay. Never postpone an already due alarm.
         if (j.alarmElapsed <= now) return
-        if (match.station == j.anchor && now - j.anchorElapsed < 15_000) return
-        val updated = j.reanchor(match.station, match.elapsed, "GPS yakınlık doğrulaması")
+        if (kotlin.math.abs(match.position-(j.anchor+j.anchorFraction)) < 0.05 && now - j.anchorElapsed < 10_000) return
+        val updated = j.reanchorPosition(match.position, match.elapsed, "Konum hat tahmini")
         runCatching { Alarms.schedule(this, updated); store.save(updated); startForeground(41, notification(updated)) }
     }
 
-    @Deprecated("Legacy location callback")
-    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
-    override fun onProviderEnabled(provider: String) = Unit
-    override fun onProviderDisabled(provider: String) = Unit
     override fun onDestroy() {
         handler.removeCallbacksAndMessages(null)
-        manager.removeUpdates(this)
+        locations.stop()
         stopForeground(STOP_FOREGROUND_REMOVE)
         super.onDestroy()
     }

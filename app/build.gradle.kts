@@ -10,8 +10,8 @@ android {
         applicationId = "com.metroup"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.0"
+        versionCode = 3
+        versionName = "0.3.0"
     }
     buildFeatures { compose = true }
     compileOptions {
@@ -27,6 +27,8 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview")
     debugImplementation("androidx.compose.ui:ui-tooling")
     implementation("androidx.core:core-ktx:1.16.0")
+    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("androidx.fragment:fragment:1.8.6")
     testImplementation("junit:junit:4.13.2")
 }
 

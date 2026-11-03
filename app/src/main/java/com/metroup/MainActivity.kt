@@ -5,8 +5,6 @@ import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
-import android.location.LocationListener
-import android.location.LocationManager
 import android.net.Uri
 import android.os.*
 import android.provider.Settings
@@ -29,7 +27,8 @@ import androidx.core.content.ContextCompat
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
-class MainActivity : ComponentActivity(), LocationListener {
+class MainActivity : ComponentActivity() {
+    private val locations by lazy { QuickLocationSource(this, ::onLocationChanged) }
     private var latestFix by mutableStateOf<GpsFix?>(null)
     private var nearby by mutableStateOf<StationMatch?>(null)
     private var selectedRouteId by mutableStateOf("M1A")
@@ -38,29 +37,24 @@ class MainActivity : ComponentActivity(), LocationListener {
     private val permissions = registerForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) { startGps() }
     override fun onResume() { super.onResume(); startGps() }
     override fun onPause() {
-        getSystemService(LocationManager::class.java).removeUpdates(this)
+        locations.stop()
         super.onPause()
     }
     private fun startGps() {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) return
-        runCatching { getSystemService(LocationManager::class.java).requestLocationUpdates(LocationManager.GPS_PROVIDER, 5_000L, 0f, this) }
+        locations.start()
         val j = Store(this).load()
         if (j != null && !j.ringing) runCatching { startForegroundService(Intent(this, TrackingService::class.java)) }
     }
-    override fun onLocationChanged(location: Location) {
+    private fun onLocationChanged(location: Location) {
         if (!location.hasAccuracy()) { nearby = null; latestFix = null; return }
         val fix = GpsFix(GeoPoint(location.latitude, location.longitude), location.accuracy.toDouble(), location.elapsedRealtimeNanos / 1_000_000)
         latestFix = fix
         val now = SystemClock.elapsedRealtime()
         val match = nearbyMatcher.accept(fix, now, selectedRoute.stations.indices.toList())
-        if (nearbyMatcher.nearest(fix, now) == null) nearby = null
+        if (nearbyMatcher.locate(fix, now) == null) nearby = null
         else if (match != null) nearby = match
     }
-    @Deprecated("Legacy location callback")
-    override fun onStatusChanged(provider: String?, status: Int, extras: Bundle?) = Unit
-    override fun onProviderEnabled(provider: String) = Unit
-    override fun onProviderDisabled(provider: String) { nearby = null; latestFix = null }
-
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         Store(this).load()?.let { selectedRouteId = it.routeId; nearbyMatcher = StationMatcher(it.route) }
@@ -117,14 +111,21 @@ class MainActivity : ComponentActivity(), LocationListener {
                                 nearby = null; nearbyMatcher = StationMatcher(selected)
                                 start = 0; dest = selected.stations.lastIndex
                                 before = if (selected.stations.size == 2) 1 else 2
+                                latestFix?.let { fix ->
+                                    val at = SystemClock.elapsedRealtime()
+                                    nearby = nearbyMatcher.accept(fix, at, selected.stations.indices.toList())
+                                }
                                 confirm = 0; error = null
                             }
                             if (route.id == "M2_SHUTTLE") Text("Seyrantepe kolu: aktarmayı Sanayi Mahallesi'nde yap. Tek aralıkta 1 durak önce alarm başlangıçta çalar.", fontSize = 12.sp)
+                            latestFix?.let { fix ->
+                                Text("Son ölçüm: ${((now-fix.elapsed).coerceAtLeast(0)/1000)} sn önce • yaklaşık ±${fix.accuracyMeters.toInt()} m", fontSize = 12.sp)
+                            }
                             val detected = nearby?.takeIf { now - it.elapsed in 0..30_000L }
                             if (detected != null) {
-                                Text("GPS yakını: ${route.stations[detected.station]} • ${detected.distanceMeters.toInt()} m", color = MaterialTheme.colorScheme.primary)
-                                TextButton(onClick = { start = detected.station }) { Text("Biniş durağı olarak seç") }
-                            } else Text("GPS: ${route.code} durak yakınlığı doğrulanmadan alarm başlatılamaz.", fontSize = 12.sp)
+                                Text("Konum: ${detected.label(route)} • ${detected.distanceMeters.toInt()} m", color = MaterialTheme.colorScheme.primary)
+                                TextButton(onClick = { start = if (dest < detected.position) kotlin.math.ceil(detected.position).toInt() else detected.station }) { Text("Biniş durağı olarak seç") }
+                            } else Text("Konum: ${route.code} hat yakınlığı doğrulanmadan alarm başlatılamaz.", fontSize = 12.sp)
                             StationPicker(route, "Biniş durağı", start, route.stations.indices.toList()) { start = it }
                             TextButton(onClick = { val old = start; start = dest; dest = old }) { Text("↑↓ Yönü değiştir") }
                             StationPicker(route, "Varış durağı", dest, route.stations.indices.toList()) { dest = it }
@@ -147,8 +148,7 @@ class MainActivity : ComponentActivity(), LocationListener {
                             Text("${route.stations[j.start]} → ${route.stations[j.destination]}")
                             Text("${j.before} durak önce: ${route.stations[j.alarmStation]}", color = MaterialTheme.colorScheme.primary)
                             HorizontalDivider()
-                            val gpsFresh = j.source.startsWith("GPS") && now - j.anchorElapsed in 0..30_000L
-                            Text(if (gpsFresh) "GPS yakını: ${route.stations[j.anchor]}" else "Süre tahmini: ${route.stations[j.estimatedStation(now)]}")
+                            Text(TripProgress.from(j,now).position)
                             Text("Son dayanak: ${j.source} • ${route.stations[j.anchor]}", fontSize = 12.sp)
                             Text("Konum doğrulanmazsa süreyle ilerler. Gecikmeler tahmini değiştirebilir.", color = Color(0xFFABB9BF), fontSize = 12.sp)
                         }
@@ -176,7 +176,7 @@ class MainActivity : ComponentActivity(), LocationListener {
                     if (j == null) {
                         val problem = BoardingGuard.problem(latestFix, nearby, start, now,
                             ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED,
-                            getSystemService(LocationManager::class.java).isProviderEnabled(LocationManager.GPS_PROVIDER), route)
+                            QuickLocationSource.enabled(this@MainActivity), route, dest)
                         problem?.let { Text(it, color = MaterialTheme.colorScheme.error, fontSize = 13.sp) }
                     }
                     error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
@@ -186,9 +186,9 @@ class MainActivity : ComponentActivity(), LocationListener {
                             check(exact && notify) { "Önce kesin alarm ve bildirim izinlerini aç." }
                             val locationProblem = BoardingGuard.problem(latestFix, nearby, start, SystemClock.elapsedRealtime(),
                                 ContextCompat.checkSelfPermission(this@MainActivity, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED,
-                                getSystemService(LocationManager::class.java).isProviderEnabled(LocationManager.GPS_PROVIDER), route)
+                                QuickLocationSource.enabled(this@MainActivity), route, dest)
                             check(locationProblem == null) { locationProblem ?: "Konum doğrulanamadı." }
-                            val created = Journey.create(start, dest, before, seconds, SystemClock.elapsedRealtime(), route).copy(source = "GPS biniş doğrulaması")
+                            val created = Journey.create(start, dest, before, seconds, SystemClock.elapsedRealtime(), route).reanchorPosition(nearby!!.position, nearby!!.elapsed, "Konum hat tahmini")
                             store.save(created)
                             try { Alarms.schedule(this@MainActivity, created) } catch (e: Exception) { store.clear(); throw e }
                             journey = created; confirm = start; error = null
@@ -198,7 +198,11 @@ class MainActivity : ComponentActivity(), LocationListener {
                     }, modifier = Modifier.fillMaxWidth().height(60.dp), shape = RoundedCornerShape(18.dp), enabled = j != null || (abs(dest-start) >= before && start != dest && exact && notify)) {
                         Text(if (j == null) "Yolculuğu başlat →" else if (j.ringing) "Uyandım • alarmı kapat" else "Yolculuğu bitir", fontSize = 16.sp, fontWeight = FontWeight.Bold)
                     }
-                    if (j == null) TextButton(onClick = { requestPermissions() }) { Text("Konum ve bildirim izinlerini aç") }
+                    if (j == null) {
+                        TextButton(onClick = { requestPermissions() }) { Text("Konum ve bildirim izinlerini aç") }
+                        TextButton(onClick = { locations.stop(); startGps() }) { Text("Konumu yeniden iste") }
+                        TextButton(onClick = { startActivity(Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)) }) { Text("Telefonun konum ayarları") }
+                    }
                     Text("ÇEVRİMDIŞI HAZIR / HESAP GEREKTİRMEZ", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
                     Text("Süreler tahminidir. Alarm sesini açık tut. Telefon kapanırsa, yeniden başlarsa veya uygulamayı zorla durdurursan yolculuğu yeniden başlat. İlk kullanımda ekran kilitliyken alarmı dene.", color = Color(0xFFABB9BF), fontSize = 12.sp)
                 }

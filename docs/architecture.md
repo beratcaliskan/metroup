@@ -2,17 +2,19 @@
 
 ## Çalışan yerel uygulama
 
-`Journey.kt`: Android'den bağımsız hesaplama; yön, durak sayısı, tekdüze aralık süresi, alarm noktası. Birim testleri iki yönü, gecikme düzeltmesini, hattın korunmasını ve sınırları kapsar. Journey hat kimliğini taşır; Store hat kimliği olmayan eski kayıtlarda M1A kullanır.
+`Journey.kt`: Android'den bağımsız hesaplama; yön, durak sayısı, tekdüze aralık süresi, kesirli ilerleme ve alarm noktası. Birim testleri iki yönü, gecikme düzeltmesini, hattın korunmasını ve sınırları kapsar. Journey hat kimliğini taşır; Store hat kimliği olmayan eski kayıtlarda M1A kullanır.
 
-`Store.kt`: SharedPreferences içinde tek aktif yolculuk ve son doğrulanan durak/zaman. Boot count ile yeniden başlatma tespiti. Bulut hesabı yok.
+`Store.kt`: SharedPreferences içinde tek aktif yolculuk ve son doğrulanan durak/aralık kesri/zaman. Boot count ile yeniden başlatma tespiti. Bulut hesabı yok.
 
 `Alarms.kt`: monotonic kesin alarm, BroadcastReceiver, mediaPlayback foreground service ile döngülü alarm sesi ve titreşim. AlarmManager uygulama süreci ölse de alarmı tutar; force-stop veya yeniden başlatma hariç.
 
 `StationCatalog.kt`: İBB kaynağından sıralanmış 18 M1A koordinatı. `Routes.kt` M1A, M2 ana hat ve Seyrantepe kolunu istasyon isimleri ve koordinatlarıyla ayrı güzergâhlar olarak sunar. Kaynak kopyaları `docs/m1a-stations.json`, `docs/m2-stations.json` ve ayrıntılar `docs/station-data.md` içinde.
 
-`StationMatcher.kt`: Android'den bağımsız yakınlık, doğruluk, tazelik, belirsiz eşleşme ve iki ölçüm kontrolü. Sonlu olmayan koordinatlar, eski/tekrarlı GPS ölçümleri reddedilir. Seçili güzergâh dışındaki duraklar alarmı değiştirmez.
+`QuickLocationSource.kt`: ekran/servis yaşam döngüsüne bağlı Fused Location + native GPS/network/passive sağlayıcıları. Cache yaş/doğruluk filtresinden geçer; getCurrentLocation max-age/duration 10 sn, akış hedef aralığı 1 sn, minimum 500 ms, batching ve waitForAccurateLocation kapalı. Nesiller arası eski callback'ler yok sayılır; stop token ve dinleyicileri kaldırır. Google Play services yoksa yerel sağlayıcılar devam eder. Fused dependency'nin eski transitive Fragment sürümü ActivityResult izin akışıyla uyumsuz olduğu için Fragment 1.8.6 açıkça sabitlenir.
 
-`BoardingGuard.kt`: güncel ve kaliteli GPS, iki ölçümle durak doğrulaması ve biniş eşleşmesi olmadan başlatmayı reddeder. Konum bulunamaması hattın uzağında olma durumundan ayrı mesajla açıklanır.
+`StationMatcher.kt`: durak + yaklaşık doğrusal koridor eşlemesi, kesirli konum. ≤25 m ve ≤10 sn ölçüm ilk seferde; diğer geçerli ölçümler 1–15 sn arayla tutarlılık ve hız kontrolüyle kabul edilir. 500 ms güncellemeler doğrulama penceresini sürekli yeniden başlatmaz. Gerçek ray geometrisi yoktur; çizgi geometrisinin sınırlamaları README'de açıklanır.
+
+`BoardingGuard.kt`: hat eşleşmesi ve konum kalitesini korur; başlatma mevcut konum planlanan biniş–varış aralığındaysa duraklar arasında da yapılır. Hat değişince eski doğrulama kullanılamaz. Konum yokluğu uzak hat durumundan ayrı mesajla açıklanır.
 
 `TripProgress.kt`: bildirimde yön, kalan duraklar ve GPS/süre tahmini durumu.
 

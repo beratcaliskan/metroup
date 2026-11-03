@@ -4,7 +4,7 @@ import org.junit.Assert.*
 import org.junit.Test
 
 class StationMatcherTest {
-    private fun fix(station: Int = 8, time: Long = 1000, accuracy: Double = 10.0) =
+    private fun fix(station: Int = 8, time: Long = 1000, accuracy: Double = 40.0) =
         GpsFix(StationCatalog.points[station], accuracy, time)
     private val route = (0..8).toList()
     @Test fun catalogContainsAllM1AStationsInOrder() {
@@ -13,11 +13,11 @@ class StationMatcherTest {
             assertEquals(i, StationMatcher().nearest(fix(i), 1000)!!.station)
         }
     }
-    @Test fun requiresTwoIndependentFixesAtLeastFiveSecondsApart() {
+    @Test fun moderateFixesNeedTwoIndependentMeasurements() {
         val m = StationMatcher()
         assertNull(m.accept(fix(), 1000, route))
         assertNull(m.accept(fix(), 1001, route))
-        assertNull(m.accept(fix(time=3000), 3000, route))
+        assertEquals(8, m.accept(fix(time=3000), 3000, route)!!.station)
         assertEquals(8, m.accept(fix(time=6000), 6000, route)!!.station)
     }
     @Test fun rejectsStaleFutureAndInaccurateFixes() {
